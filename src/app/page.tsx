@@ -17,12 +17,12 @@ import { demoJobs, photos, stateLabel } from "@/lib/demo-data";
 
 const activeJob = demoJobs[0];
 const storySteps = [
-  ["1", "Capture the condition", "Before photos set the baseline."],
-  ["2", "Confirm the scope", "Customer reviews and acknowledges."],
-  ["3", "Show the work", "Guided proof checkpoints keep you on track."],
-  ["4", "Handle exceptions", "Document issues with context."],
-  ["5", "Get a nod", "Customer approves completion."],
-  ["6", "Leave the record", "Clean, shareable, built for trust."]
+  ["1", "Capture condition", "Before photos set the baseline."],
+  ["2", "Confirm scope", "Customer reviews and acknowledges."],
+  ["3", "Show work", "Guided proof checkpoints."],
+  ["4", "Handle exceptions", "Document issues in context."],
+  ["5", "Get the nod", "Customer approves completion."],
+  ["6", "Leave a record", "Clean, shareable, built for trust."]
 ];
 
 export default function Home() {
@@ -50,8 +50,8 @@ export default function Home() {
                 <span className="text-scope-blue">Leave a trusted Service Record.</span>
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-white/68">
-                ScopeNod is a field camera that creates customer-acknowledged Service Records for
-                mobile service teams.
+                ScopeNod is a mobile service-proof app for capturing scope, photos, exceptions,
+                customer acknowledgements, and shareable Service Records.
               </p>
             </div>
           </div>
@@ -177,14 +177,16 @@ export default function Home() {
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-scope-blue">
                 Product flow
               </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {storySteps.map(([number, title, body]) => (
-                  <div key={number} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-scope-blue text-sm font-bold text-white">
+                  <div key={number} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-scope-blue text-sm font-bold text-white">
                       {number}
                     </span>
-                    <h3 className="mt-4 text-sm font-semibold">{title}</h3>
-                    <p className="mt-2 text-xs leading-5 text-white/55">{body}</p>
+                    <span>
+                      <h3 className="text-sm font-semibold">{title}</h3>
+                      <p className="mt-1 text-xs leading-5 text-white/55">{body}</p>
+                    </span>
                   </div>
                 ))}
               </div>
