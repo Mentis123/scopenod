@@ -1,13 +1,34 @@
 import { ArrowLeft, CheckCircle2, Copy, MessageSquareText, QrCode } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
 import { QrCard } from "@/components/qr-card";
 import { StatusPill } from "@/components/status-pill";
-import { getJob, includedScope, excludedScope, photos } from "@/lib/demo-data";
+import { hasDatabase } from "@/lib/db/client";
+import { includedScope, excludedScope, photos } from "@/lib/demo-data";
+import { createApprovalLink } from "@/lib/server/approval-links";
+import { getJobForDisplay } from "@/lib/server/jobs";
 
-export default function WorkerScopePage({ params }: { params: { jobId: string } }) {
-  const job = getJob(params.jobId);
+async function openScopeLinkAction(formData: FormData) {
+  "use server";
+
+  const jobId = String(formData.get("jobId") || "");
+
+  if (!hasDatabase() || jobId === "honda-accord") {
+    redirect("/ack/scope-demo");
+  }
+
+  try {
+    const link = await createApprovalLink(jobId, "scope");
+    redirect(link.url);
+  } catch {
+    redirect("/ack/scope-demo");
+  }
+}
+
+export default async function WorkerScopePage({ params }: { params: { jobId: string } }) {
+  const job = await getJobForDisplay(params.jobId);
 
   return (
     <main className="app-bg min-h-screen text-white">
@@ -32,13 +53,16 @@ export default function WorkerScopePage({ params }: { params: { jobId: string } 
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <Link
-              href="/ack/scope-demo"
-              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-scope-blue px-5 font-semibold text-white"
-            >
-              <Copy className="h-5 w-5" />
-              Open scope link
-            </Link>
+            <form action={openScopeLinkAction}>
+              <input type="hidden" name="jobId" value={job.id} />
+              <button
+                type="submit"
+                className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-scope-blue px-5 font-semibold text-white"
+              >
+                <Copy className="h-5 w-5" />
+                Open scope link
+              </button>
+            </form>
             <button className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border border-white/12 px-5 font-semibold text-white/80">
               <MessageSquareText className="h-5 w-5" />
               Native share
@@ -106,13 +130,16 @@ export default function WorkerScopePage({ params }: { params: { jobId: string } 
             <p className="mt-1 text-black/62">Light scratch on left rear door. Customer shown.</p>
           </div>
 
-          <Link
-            href="/ack/scope-demo"
-            className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg bg-scope-blue px-5 font-semibold text-white"
-          >
-            <QrCode className="h-5 w-5" />
-            Acknowledge Scope
-          </Link>
+          <form action={openScopeLinkAction} className="mt-6">
+            <input type="hidden" name="jobId" value={job.id} />
+            <button
+              type="submit"
+              className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg bg-scope-blue px-5 font-semibold text-white"
+            >
+              <QrCode className="h-5 w-5" />
+              Acknowledge Scope
+            </button>
+          </form>
         </section>
       </div>
     </main>

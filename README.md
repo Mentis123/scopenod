@@ -1,6 +1,6 @@
 # ScopeNod
 
-A mobile-first field camera that creates customer-acknowledged Service Records.
+A mobile-first service-proof app for capturing scope, photos, exceptions, customer acknowledgements, and shareable Service Records.
 
 ## Prototype Routes
 
@@ -13,43 +13,57 @@ A mobile-first field camera that creates customer-acknowledged Service Records.
 - `/record/demo` - final Service Record
 - `/moodboard` - visual moodboard reference
 
-## Tomorrow Test Scope
+## Backend Status
 
-This build is a deployable pilot prototype, not the full production backend.
+The pilot now includes a real backend foundation:
 
-Ready to test:
+- Neon Postgres schema via Drizzle
+- tokenized scope/completion/Service Record links
+- job creation API and server action
+- customer acknowledgement API and server action
+- Service Record lookup API
+- Vercel Blob client-upload route foundation
+- Gemini photo-check adapter with `stub` and `live` modes
+- backend health endpoint at `/api/health`
+- automatic pilot org/template seeding on first real job creation
 
-- brand direction and visual feel
-- worker Today screen
-- new job shell
-- async scope handoff
-- guided capture flow
-- review reel
-- customer scope review
-- customer completion review
-- final Service Record
-- moodboard/product-direction references
+The current UI still keeps polished demo content where the capture surface and customer pages are not fully data-bound yet. The persistence, token, upload, and AI boundaries are in place for the next implementation pass.
 
-Not production-real yet:
+## Required Environment Variables
 
-- Neon database persistence
-- Auth account creation/login
-- Vercel Blob uploads
-- real camera/file capture
-- real AI verification calls
-- SMS/email sending
+Set these in Vercel for Production, Preview, and Development as needed:
 
-## Production Backend Next
+- `DATABASE_URL` - Neon pooled Postgres connection string.
+- `BLOB_READ_WRITE_TOKEN` - Vercel Blob store read/write token.
+- `NEXT_PUBLIC_APP_URL` - deployed app origin, for example `https://scopenod.vercel.app`.
+- `AI_MODE` - use `stub` for no-cost checks or `live` to call Gemini.
+- `GEMINI_API_KEY` - required when `AI_MODE=live`.
+- `GEMINI_MODEL_ID` - optional, defaults to `gemini-3-flash-preview`.
+- `GEMINI_API_URL` - optional, defaults to Google's `v1beta` Gemini API base URL.
 
-To make ScopeNod fully real, wire these in next:
+Do not commit real secret values. Use `.env.example` as the shape only.
 
-1. Neon Postgres + Drizzle schema for jobs, scope items, photos, acknowledgements, exceptions, records, and audit events.
-2. Auth.js magic-link sign-in with organization/user membership.
-3. Vercel Blob upload tokens for raw originals, display images, and thumbnails.
-4. Browser capture/file upload with client resize/compression.
-5. AI adapter behind `GEMINI_MODEL_ID` with stub/live modes.
-6. Tokenized customer links for `/ack/:token` and `/record/:token`.
-7. Audit events for scope sent/viewed/acknowledged, photo captured, exception added, completion approved, and record generated.
+## Backend Routes
+
+- `GET /api/health` - reports whether DB, Blob, and Gemini are configured.
+- `GET /api/jobs` - returns real jobs when DB is configured, demo fallback otherwise.
+- `POST /api/jobs` - creates a real job shell and seeds the pilot workspace if needed.
+- `POST /api/jobs/:jobId/approval-links` - creates scope, completion, or Service Record links.
+- `GET /api/ack/:token` - resolves a customer acknowledgement token.
+- `POST /api/ack/:token` - records customer acknowledgement.
+- `GET /api/service-records/:token` - resolves a public Service Record token.
+- `POST /api/photo-checks` - calls the photo verification adapter.
+- `POST /api/uploads/proof` - creates/listens for Vercel Blob client uploads.
+
+## Still To Make Fully Real
+
+- bind customer pages completely to live DB payloads
+- bind capture UI to real browser file/camera upload
+- add client image compression and local draft retry queue
+- add Auth.js or equivalent worker login
+- add completion-link generation in the worker UI
+- add operator/business profile screens
+- add legal-reviewed production acknowledgement copy
 
 ## Run Locally
 
@@ -72,6 +86,15 @@ http://127.0.0.1:3000
 npm run typecheck
 npm run build
 ```
+
+Database migration commands:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
+`db:push` applies the Drizzle schema directly to the configured Neon database.
 
 Production builds work normally in clean paths such as CI/Vercel. In this local OneDrive path, Next's webpack production file tracing can misread the `DATA#3 LIMITED` segment. During local validation, build from a temporary drive alias:
 

@@ -1,14 +1,96 @@
 import { ArrowLeft, CheckCircle2, Circle, ClipboardCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
+import { getDb, hasDatabase } from "@/lib/db/client";
+import { approvalLinks, customerAcknowledgements, jobs, serviceRecords } from "@/lib/db/schema";
 import { includedScope, excludedScope, exceptions, photos } from "@/lib/demo-data";
+import {
+  createServiceRecordLink,
+  findActiveApprovalLinkByToken,
+  isApprovalActionAllowed
+} from "@/lib/server/approval-links";
+import { eq } from "drizzle-orm";
 
 type AckPageProps = {
   params: {
     token: string;
   };
 };
+
+async function acknowledgeAction(formData: FormData) {
+  "use server";
+
+  const token = String(formData.get("token") || "");
+  const completion = String(formData.get("completion") || "") === "true";
+  const customerName = String(formData.get("customerName") || "").trim() || "Customer";
+  const customerNote = String(formData.get("customerNote") || "").trim() || undefined;
+  const checkboxAccepted = formData.get("checkboxAccepted") === "on";
+
+  if (!checkboxAccepted) {
+    redirect(`/ack/${token}`);
+  }
+
+  if (!hasDatabase() || token.includes("demo")) {
+    redirect(completion ? "/record/demo" : "/jobs/honda-accord/capture");
+  }
+
+  const db = getDb();
+  const link = await findActiveApprovalLinkByToken(token);
+
+  if (!link || link.purpose === "service_record" || !isApprovalActionAllowed(link)) {
+    redirect(completion ? "/record/demo" : "/");
+  }
+
+  const [job] = await db.select().from(jobs).where(eq(jobs.id, link.jobId)).limit(1);
+
+  if (!job) {
+    redirect("/");
+  }
+
+  const acknowledgedAt = new Date();
+
+  await db.insert(customerAcknowledgements).values({
+    jobId: job.id,
+    approvalLinkId: link.id,
+    kind: link.purpose,
+    customerName,
+    customerNote,
+    checkboxAccepted,
+    acknowledgedAt
+  });
+
+  await db
+    .update(approvalLinks)
+    .set({ status: "used", usedAt: acknowledgedAt, updatedAt: acknowledgedAt })
+    .where(eq(approvalLinks.id, link.id));
+
+  if (link.purpose === "scope") {
+    await db
+      .update(jobs)
+      .set({ state: "scope_acknowledged", updatedAt: acknowledgedAt })
+      .where(eq(jobs.id, job.id));
+    redirect(`/jobs/${job.id}/capture`);
+  }
+
+  await db
+    .update(jobs)
+    .set({ state: "completed", completedAt: acknowledgedAt, updatedAt: acknowledgedAt })
+    .where(eq(jobs.id, job.id));
+
+  const recordLink = await createServiceRecordLink(job.id);
+  await db
+    .update(serviceRecords)
+    .set({
+      status: "acknowledged",
+      customerAcknowledgedAt: acknowledgedAt,
+      updatedAt: acknowledgedAt
+    })
+    .where(eq(serviceRecords.jobId, job.id));
+
+  redirect(recordLink.url);
+}
 
 export default function AckPage({ params }: AckPageProps) {
   const isCompletion = params.token.includes("completion");
@@ -44,14 +126,14 @@ export default function AckPage({ params }: AckPageProps) {
             <p><span className="font-semibold">Business:</span> Clear Finish Detailing</p>
           </div>
 
-          {isCompletion ? <CompletionBody /> : <ScopeBody />}
+          {isCompletion ? <CompletionBody token={params.token} /> : <ScopeBody token={params.token} />}
         </section>
       </div>
     </main>
   );
 }
 
-function ScopeBody() {
+function ScopeBody({ token }: { token: string }) {
   return (
     <>
       <section className="mt-7">
@@ -74,6 +156,7 @@ function ScopeBody() {
       </section>
 
       <ApprovalPanel
+        token={token}
         label="I confirm this matches my understanding of the starting condition and service scope."
         button="Acknowledge Scope"
       />
@@ -81,7 +164,7 @@ function ScopeBody() {
   );
 }
 
-function CompletionBody() {
+function CompletionBody({ token }: { token: string }) {
   return (
     <>
       <section className="mt-7">
@@ -121,6 +204,7 @@ function CompletionBody() {
       </section>
 
       <ApprovalPanel
+        token={token}
         label="I confirm the completed service photos and notes have been reviewed."
         button="Approve Completion"
         secondary="Add note before approving"
@@ -160,11 +244,13 @@ function ScopeLists() {
 }
 
 function ApprovalPanel({
+  token,
   label,
   button,
   secondary,
   completion = false
 }: {
+  token: string;
   label: string;
   button: string;
   secondary?: string;
@@ -172,22 +258,32 @@ function ApprovalPanel({
 }) {
   return (
     <section className="mt-7 border-t border-black/10 pt-5">
-      <label className="flex gap-3 rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm">
-        <input type="checkbox" className="mt-1 h-5 w-5 accent-green-500" defaultChecked />
-        <span>{label}</span>
-      </label>
-      <input
-        defaultValue="Maya Chen"
-        aria-label="Customer full name"
-        className="mt-3 min-h-12 w-full rounded-xl border border-black/12 px-4 text-sm outline-none focus:border-scope-blue"
-      />
-      <Link
-        href={completion ? "/record/demo" : "/jobs/honda-accord/capture"}
-        className="mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg bg-scope-blue px-5 font-semibold text-white"
-      >
-        {completion ? <ClipboardCheck className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
-        {button}
-      </Link>
+      <form action={acknowledgeAction}>
+        <label className="flex gap-3 rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm">
+          <input
+            name="checkboxAccepted"
+            type="checkbox"
+            className="mt-1 h-5 w-5 accent-green-500"
+            defaultChecked
+          />
+          <span>{label}</span>
+        </label>
+        <input
+          name="customerName"
+          defaultValue="Maya Chen"
+          aria-label="Customer full name"
+          className="mt-3 min-h-12 w-full rounded-xl border border-black/12 px-4 text-sm outline-none focus:border-scope-blue"
+        />
+        <input type="hidden" name="token" value={token} />
+        <input type="hidden" name="completion" value={completion ? "true" : "false"} />
+        <button
+          type="submit"
+          className="mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-lg bg-scope-blue px-5 font-semibold text-white"
+        >
+          {completion ? <ClipboardCheck className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+          {button}
+        </button>
+      </form>
       {secondary ? (
         <button className="mt-3 min-h-12 w-full rounded-lg border border-black/15 font-semibold text-graphite-950">
           {secondary}

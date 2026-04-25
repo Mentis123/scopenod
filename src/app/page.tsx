@@ -13,9 +13,11 @@ import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
 import { StatusPill } from "@/components/status-pill";
-import { demoJobs, photos, stateLabel } from "@/lib/demo-data";
+import { photos, stateLabel } from "@/lib/demo-data";
+import { listJobsForToday } from "@/lib/server/jobs";
 
-const activeJob = demoJobs[0];
+export const dynamic = "force-dynamic";
+
 const storySteps = [
   ["1", "Capture condition", "Before photos set the baseline."],
   ["2", "Confirm scope", "Customer reviews and acknowledges."],
@@ -25,7 +27,10 @@ const storySteps = [
   ["6", "Leave a record", "Clean, shareable, built for trust."]
 ];
 
-export default function Home() {
+export default async function Home() {
+  const jobs = await listJobsForToday();
+  const activeJob = jobs[0];
+
   return (
     <main className="app-bg min-h-screen text-white">
       <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-8 px-4 py-5 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-8">
@@ -105,7 +110,7 @@ export default function Home() {
               </div>
 
               <div className="mt-5 space-y-3">
-                {demoJobs.map((job, index) => (
+                {jobs.map((job, index) => (
                   <Link
                     href={index === 0 ? `/jobs/${job.id}/capture` : `/jobs/${job.id}/scope`}
                     key={job.id}
@@ -113,7 +118,7 @@ export default function Home() {
                   >
                     <div className="flex gap-3">
                       <PhotoTile
-                        photo={photos[index + 1]}
+                        photo={photos[(index % 3) + 1]}
                         label={false}
                         className="h-20 w-24 shrink-0"
                       />
