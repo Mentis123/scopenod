@@ -219,6 +219,7 @@ export const jobExceptions = pgTable("job_exceptions", {
 
 export const jobPhotos = pgTable("job_photos", {
   id: id(),
+  clientUploadId: text("client_upload_id"),
   jobId: uuid("job_id")
     .notNull()
     .references(() => jobs.id, { onDelete: "cascade" }),
@@ -244,6 +245,7 @@ export const jobPhotos = pgTable("job_photos", {
   createdAt: createdAt(),
   updatedAt: updatedAt()
 }, (table) => ({
+  clientUploadIdx: uniqueIndex("job_photos_client_upload_idx").on(table.clientUploadId),
   jobKindIdx: index("job_photos_job_kind_idx").on(table.jobId, table.kind),
   checkpointIdx: index("job_photos_checkpoint_idx").on(table.checkpointId)
 }));

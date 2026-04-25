@@ -23,6 +23,8 @@ The pilot now includes a real backend foundation:
 - customer acknowledgement API and server action
 - Service Record lookup API
 - Vercel Blob client-upload route foundation
+- mobile capture/file picker with client-side image resize
+- uploaded proof photo registration against jobs
 - Gemini photo-check adapter with `stub` and `live` modes
 - backend health endpoint at `/api/health`
 - automatic pilot org/template seeding on first real job creation
@@ -58,8 +60,8 @@ Do not commit real secret values. Use `.env.example` as the shape only.
 ## Still To Make Fully Real
 
 - bind customer pages completely to live DB payloads
-- bind capture UI to real browser file/camera upload
-- add client image compression and local draft retry queue
+- add local draft retry queue for failed/pending uploads
+- bind uploaded photos into customer pages and Service Records
 - add Auth.js or equivalent worker login
 - add completion-link generation in the worker UI
 - add operator/business profile screens

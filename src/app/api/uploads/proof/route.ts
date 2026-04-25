@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 export const runtime = "nodejs";
 
 const uploadPayloadSchema = z.object({
+  clientUploadId: z.string().trim().min(8),
   jobId: z.string().uuid(),
   checkpointId: z.string().uuid().optional(),
   exceptionId: z.string().uuid().optional(),
@@ -16,6 +17,7 @@ const uploadPayloadSchema = z.object({
   label: z.string().min(1).default("Proof photo"),
   note: z.string().optional(),
   contentType: z.string().optional(),
+  sizeBytes: z.number().int().positive().optional(),
   assetRole: z.enum(["display", "raw", "thumbnail"]).default("display")
 });
 
@@ -70,6 +72,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const [photo] = await db
           .insert(jobPhotos)
           .values({
+            clientUploadId: payload.clientUploadId,
             jobId: payload.jobId,
             checkpointId: payload.checkpointId,
             exceptionId: payload.exceptionId,
@@ -81,9 +84,24 @@ export async function POST(request: Request): Promise<NextResponse> {
             thumbnailUrl: payload.assetRole === "thumbnail" ? blob.url : null,
             blobPathname: blob.pathname,
             contentType: payload.contentType,
+            sizeBytes: payload.sizeBytes,
             status: "uploaded",
             uploadedAt: new Date(),
             capturedAt: new Date()
+          })
+          .onConflictDoUpdate({
+            target: jobPhotos.clientUploadId,
+            set: {
+              blobUrl: payload.assetRole === "display" ? blob.url : undefined,
+              rawBlobUrl: payload.assetRole === "raw" ? blob.url : undefined,
+              thumbnailUrl: payload.assetRole === "thumbnail" ? blob.url : undefined,
+              blobPathname: blob.pathname,
+              contentType: payload.contentType,
+              sizeBytes: payload.sizeBytes,
+              status: "uploaded",
+              uploadedAt: new Date(),
+              updatedAt: new Date()
+            }
           })
           .returning();
 
