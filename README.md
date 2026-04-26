@@ -46,6 +46,8 @@ Set these in Vercel for Production, Preview, and Development as needed:
 - `DATABASE_URL` - Neon pooled Postgres connection string.
 - `BLOB_READ_WRITE_TOKEN` - Vercel Blob store read/write token.
 - `NEXT_PUBLIC_APP_URL` - deployed app origin, for example `https://scopenod.vercel.app`.
+- `SERVICE_CODES` - comma-separated pilot service codes. Current default/local code is `Mentis123`.
+- `SERVICE_GATE_SECRET` - signing secret for service-code sessions.
 - `AI_MODE` - use `stub` for no-cost checks or `live` to call Gemini.
 - `GEMINI_API_KEY` - required when `AI_MODE=live`.
 - `GEMINI_MODEL_ID` - optional, defaults to `gemini-3-flash-preview`.
@@ -64,6 +66,14 @@ Do not commit real secret values. Use `.env.example` as the shape only.
 - `GET /api/service-records/:token` - resolves a public Service Record token.
 - `POST /api/photo-checks` - calls the photo verification adapter.
 - `POST /api/uploads/proof` - creates/listens for Vercel Blob client uploads.
+
+## Service-Code Gate
+
+The public home page is a private-pilot landing screen. Worker routes, handoff creation, job APIs, upload registration, and AI checks require a signed service-code session from `/login`.
+
+Current pilot code: `Mentis123`.
+
+Real customer token pages stay public for unguessable production tokens, but predictable demo URLs are gated.
 
 ## Still To Make Fully Real
 

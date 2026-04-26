@@ -19,6 +19,7 @@ import {
   isApprovalActionAllowed
 } from "@/lib/server/approval-links";
 import { getRequesterInfo } from "@/lib/server/request";
+import { requireServiceRequest } from "@/lib/server/service-gate";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,14 @@ export async function GET(
   _request: Request,
   { params }: { params: { token: string } }
 ) {
+  if (params.token.includes("demo")) {
+    const unauthorized = await requireServiceRequest(_request);
+
+    if (unauthorized) {
+      return unauthorized;
+    }
+  }
+
   if (!hasDatabase() || params.token.includes("demo")) {
     return NextResponse.json(demoAckPayload(params.token));
   }
@@ -92,6 +101,14 @@ export async function POST(
       { ok: false, code: "checkbox_required", message: "The acknowledgement checkbox is required." },
       { status: 400 }
     );
+  }
+
+  if (params.token.includes("demo")) {
+    const unauthorized = await requireServiceRequest(request);
+
+    if (unauthorized) {
+      return unauthorized;
+    }
   }
 
   if (!hasDatabase() || params.token.includes("demo")) {

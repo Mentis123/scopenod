@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db/client";
 import { demoJobs } from "@/lib/demo-data";
 import { createJob, createJobInputSchema, listJobsForToday } from "@/lib/server/jobs";
+import { requireServiceRequest } from "@/lib/server/service-gate";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const unauthorized = await requireServiceRequest(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const jobs = await listJobsForToday();
 
   return NextResponse.json({
@@ -15,6 +22,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireServiceRequest(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   if (!hasDatabase()) {
     return NextResponse.json(
       {

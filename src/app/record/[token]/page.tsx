@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock, ExternalLink, ShieldCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
 import { StatusPill } from "@/components/status-pill";
@@ -8,9 +9,14 @@ import { getDb, hasDatabase } from "@/lib/db/client";
 import { customerAcknowledgements, jobExceptions, jobs, scopeItems } from "@/lib/db/schema";
 import { findServiceRecordByToken } from "@/lib/server/approval-links";
 import { listPhotosForJob } from "@/lib/server/photos";
+import { hasServiceSession } from "@/lib/server/service-gate";
 import { eq } from "drizzle-orm";
 
 export default async function ServiceRecordPage({ params }: { params: { token: string } }) {
+  if (params.token === "demo" && !(await hasServiceSession())) {
+    redirect("/login?next=/record/demo");
+  }
+
   const recordData = await getRecordData(params.token);
 
   return (

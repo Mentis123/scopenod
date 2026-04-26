@@ -11,6 +11,7 @@ import {
   findActiveApprovalLinkByToken,
   isApprovalActionAllowed
 } from "@/lib/server/approval-links";
+import { hasServiceSession } from "@/lib/server/service-gate";
 import { eq } from "drizzle-orm";
 
 type AckPageProps = {
@@ -92,7 +93,11 @@ async function acknowledgeAction(formData: FormData) {
   redirect(recordLink.url);
 }
 
-export default function AckPage({ params }: AckPageProps) {
+export default async function AckPage({ params }: AckPageProps) {
+  if (params.token.includes("demo") && !(await hasServiceSession())) {
+    redirect(`/login?next=/ack/${params.token}`);
+  }
+
   const isCompletion = params.token.includes("completion");
 
   return (

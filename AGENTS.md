@@ -73,6 +73,8 @@ Required in Vercel:
 - `DATABASE_URL`
 - `BLOB_READ_WRITE_TOKEN`
 - `NEXT_PUBLIC_APP_URL`
+- `SERVICE_CODES`
+- `SERVICE_GATE_SECRET`
 - `AI_MODE`
 - `GEMINI_API_KEY` when `AI_MODE=live`
 
@@ -82,6 +84,8 @@ Optional:
 - `GEMINI_API_URL`
 
 Use `.env.example` for the expected shape.
+
+Current pilot service code is `Mentis123`. Worker routes, handoff creation, job APIs, upload registration, and AI checks are gated by a signed service-code cookie from `/login`.
 
 Important security note: a Neon URL was pasted in chat during development. Do not put it in git. Rotate the Neon password before any real pilot/customer use.
 
@@ -135,6 +139,8 @@ Worker:
 
 Customer/public:
 
+- `/login` - service-code login
+- `/logout` - clears service-code session
 - `/handoff/:jobId?purpose=scope|completion|service_record` - creates/routes to the current live handoff URL
 - `/ack/:token` - customer scope/completion review
 - `/record/:token` - Service Record

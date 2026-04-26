@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, hasDatabase } from "@/lib/db/client";
 import { auditEvents, jobPhotos, jobs } from "@/lib/db/schema";
 import { isBlobConfigured } from "@/lib/env";
+import { verifyServiceSessionFromCookieHeader } from "@/lib/service-auth";
 import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -40,6 +41,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        const isAuthenticated = await verifyServiceSessionFromCookieHeader(
+          request.headers.get("cookie")
+        );
+
+        if (!isAuthenticated) {
+          throw new Error("Service code required before requesting upload tokens.");
+        }
+
         const payload = parseClientPayload(clientPayload);
 
         return {

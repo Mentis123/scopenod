@@ -9,12 +9,14 @@ import {
   ShieldCheck,
   Sparkles
 } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
 import { StatusPill } from "@/components/status-pill";
 import { photos, stateLabel } from "@/lib/demo-data";
 import { listJobsForToday } from "@/lib/server/jobs";
+import { SERVICE_COOKIE_NAME, verifyServiceSession } from "@/lib/service-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,12 @@ const storySteps = [
 ];
 
 export default async function Home() {
+  const isAuthenticated = await verifyServiceSession(cookies().get(SERVICE_COOKIE_NAME)?.value);
+
+  if (!isAuthenticated) {
+    return <PublicHome />;
+  }
+
   const jobs = await listJobsForToday();
   const activeJob = jobs[0];
   const activeCount = jobs.filter((job) => job.state !== "completed" && job.state !== "cancelled").length;
@@ -228,6 +236,74 @@ export default async function Home() {
             </div>
           </div>
         </section>
+      </div>
+    </main>
+  );
+}
+
+function PublicHome() {
+  return (
+    <main className="app-bg min-h-dvh overflow-hidden px-4 py-5 text-white">
+      <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-5xl flex-col justify-between">
+        <header className="flex items-center justify-between">
+          <Logo tagline />
+          <Link
+            href="/login"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 px-5 text-sm font-semibold text-white/78"
+          >
+            Service login
+          </Link>
+        </header>
+
+        <section className="grid gap-8 py-12 lg:grid-cols-[1fr_360px] lg:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-scope-blue">
+              AI-verified service proof
+            </p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-semibold leading-[1.02] tracking-normal sm:text-6xl">
+              Capture the condition. Confirm the scope. Show the work.{" "}
+              <span className="text-scope-blue">Leave a trusted Service Record.</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-lg leading-8 text-white/68">
+              ScopeNod is currently in private pilot. Worker tools, customer handoffs, uploads,
+              and AI checks require an approved service code.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/login"
+                className="inline-flex min-h-14 items-center justify-center rounded-full bg-scope-blue px-6 font-semibold text-white"
+              >
+                Enter service code
+              </Link>
+              <Link
+                href="/market"
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/12 px-6 font-semibold text-white/78"
+              >
+                Market notes
+              </Link>
+            </div>
+          </div>
+
+          <div className="camera-glass rounded-[28px] p-5">
+            <div className="grid gap-3">
+              {[
+                ["Private pilot", ShieldCheck],
+                ["Tokenized handoffs", QrCode],
+                ["Real proof uploads", Camera],
+                ["Service Records", ClipboardCheck]
+              ].map(([label, Icon]) => (
+                <div key={label as string} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] p-4">
+                  <Icon className="h-5 w-5 text-scope-blue" />
+                  <span className="text-sm font-semibold text-white/82">{label as string}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <footer className="safe-bottom text-sm text-white/42">
+          Service-proof software for approved ScopeNod pilot teams.
+        </footer>
       </div>
     </main>
   );

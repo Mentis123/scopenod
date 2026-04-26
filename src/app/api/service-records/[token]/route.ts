@@ -4,13 +4,22 @@ import { getDb, hasDatabase } from "@/lib/db/client";
 import { jobExceptions, jobPhotos, jobs, scopeItems } from "@/lib/db/schema";
 import { demoBusiness, exceptions, includedScope, photos } from "@/lib/demo-data";
 import { findServiceRecordByToken } from "@/lib/server/approval-links";
+import { requireServiceRequest } from "@/lib/server/service-gate";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { token: string } }
 ) {
+  if (params.token === "demo") {
+    const unauthorized = await requireServiceRequest(request);
+
+    if (unauthorized) {
+      return unauthorized;
+    }
+  }
+
   if (!hasDatabase() || params.token === "demo") {
     return NextResponse.json({
       ok: true,
