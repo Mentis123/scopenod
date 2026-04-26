@@ -22,3 +22,6 @@ build/
 # OS/editor
 .DS_Store
 Thumbs.db
+
+# legacy pre-rename drafts kept only as local reference
+SnapProof_PRD*.md

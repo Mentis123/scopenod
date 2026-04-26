@@ -33,6 +33,12 @@ The pilot now includes a real backend foundation:
 
 The current UI still keeps polished demo content where the capture surface and customer pages are not fully data-bound yet. The persistence, token, upload, and AI boundaries are in place for the next implementation pass.
 
+## Agent Handoff
+
+Agents continuing this repo should read `AGENTS.md` first. It contains the current product direction, live backend status, key routes, known local path gotchas, roadmap order, and UX rules for keeping ScopeNod mobile-web-first.
+
+Additional roadmap notes live in `docs/roadmap-notes.md`.
+
 ## Required Environment Variables
 
 Set these in Vercel for Production, Preview, and Development as needed:
