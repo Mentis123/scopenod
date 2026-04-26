@@ -15,10 +15,10 @@ import {
 import Link from "next/link";
 import { PhotoTile } from "@/components/photo-tile";
 import { StatusPill } from "@/components/status-pill";
-import { checkpoints, getJob, photos } from "@/lib/demo-data";
+import { checkpoints, photos, type DemoJob } from "@/lib/demo-data";
 
 type CaptureFlowProps = {
-  jobId: string;
+  job: DemoJob;
 };
 
 type UploadStatus = "idle" | "preparing" | "uploading" | "checking" | "saved" | "error";
@@ -35,10 +35,11 @@ type CaptureState = {
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function CaptureFlow({ jobId }: CaptureFlowProps) {
-  const job = getJob(jobId);
+export function CaptureFlow({ job }: CaptureFlowProps) {
+  const jobId = job.id;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeIndex, setActiveIndex] = useState(1);
+  const [exceptionMode, setExceptionMode] = useState(false);
   const [captures, setCaptures] = useState<Record<string, CaptureState>>({
     "starting-condition": {
       status: "saved",
@@ -69,6 +70,12 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
     }
 
     const checkpoint = active;
+    const captureKind = exceptionMode
+      ? "exception"
+      : checkpoint.id === "starting-condition"
+        ? "before"
+        : "checkpoint";
+    const captureLabel = exceptionMode ? `Exception - ${checkpoint.title}` : checkpoint.title;
     const clientUploadId = crypto.randomUUID();
     const localPreviewUrl = URL.createObjectURL(file);
 
@@ -109,8 +116,8 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
           clientUploadId,
           jobId,
           checkpointId: undefined,
-          kind: checkpoint.id === "starting-condition" ? "before" : "checkpoint",
-          label: checkpoint.title,
+          kind: captureKind,
+          label: captureLabel,
           contentType: proofFile.type,
           sizeBytes: proofFile.size,
           assetRole: "display"
@@ -133,8 +140,8 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
         blobUrl: blob.url,
         blobPathname: blob.pathname,
         checkpointId: undefined,
-        kind: checkpoint.id === "starting-condition" ? "before" : "checkpoint",
-        label: checkpoint.title,
+        kind: captureKind,
+        label: captureLabel,
         contentType: proofFile.type,
         sizeBytes: proofFile.size,
         metadata: {
@@ -194,14 +201,19 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
   }
 
   function nextCheckpoint() {
+    if (activeIndex === checkpoints.length - 1) {
+      window.location.href = `/jobs/${jobId}/review`;
+      return;
+    }
+
     setActiveIndex((index) => Math.min(index + 1, checkpoints.length - 1));
   }
 
   return (
-    <main className="app-bg min-h-screen text-white">
-      <div className="mx-auto grid min-h-screen max-w-6xl gap-6 px-4 py-5 lg:grid-cols-[0.72fr_0.28fr] lg:px-8">
-        <section className="phone-frame mx-auto w-full max-w-[430px] p-2 lg:max-w-none">
-          <div className="phone-screen min-h-[760px] overflow-hidden">
+    <main className="app-bg min-h-dvh overflow-x-hidden text-white">
+      <div className="mx-auto grid min-h-dvh max-w-6xl gap-6 px-0 py-0 lg:grid-cols-[0.72fr_0.28fr] lg:px-8 lg:py-5">
+        <section className="phone-frame mx-auto w-full max-w-none p-0 sm:max-w-[430px] sm:p-2 lg:max-w-none">
+          <div className="phone-screen min-h-dvh overflow-hidden sm:min-h-[760px]">
             <header className="flex items-center justify-between border-b border-white/10 px-4 py-4">
               <Link href="/" className="grid h-10 w-10 place-items-center rounded-full bg-white/5">
                 <ArrowLeft className="h-5 w-5" />
@@ -210,7 +222,14 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
                 <p className="text-xs text-white/45">{active.eyebrow}</p>
                 <h1 className="text-base font-semibold">{active.title}</h1>
               </div>
-              <button className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-scope-blue">
+              <button
+                onClick={() => setExceptionMode((current) => !current)}
+                className={
+                  exceptionMode
+                    ? "grid h-10 w-10 place-items-center rounded-full bg-scope-amber/20 text-scope-amber"
+                    : "grid h-10 w-10 place-items-center rounded-full bg-white/5 text-scope-blue"
+                }
+              >
                 <Zap className="h-5 w-5" />
               </button>
             </header>
@@ -252,8 +271,10 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
               ) : null}
 
               <div className="absolute bottom-6 left-5 right-5 text-center">
-                <p className="mx-auto max-w-xs text-lg font-semibold">{active.instruction}</p>
-                <p className="mt-2 text-sm text-white/58">
+                <p className="mx-auto max-w-xs break-words text-lg font-semibold">
+                  {exceptionMode ? "Capture the issue with context." : active.instruction}
+                </p>
+                <p className="mx-auto mt-2 max-w-sm break-words text-sm text-white/58">
                   {activeCapture?.suggestion ?? "Capture from the worker phone or choose a file."}
                 </p>
               </div>
@@ -302,8 +323,15 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
             </div>
 
             <div className="safe-bottom grid grid-cols-[1fr_88px_1fr] items-center gap-4 px-5 py-5">
-              <button className="min-h-12 rounded-full border border-white/12 text-sm font-semibold text-white/80">
-                Note
+              <button
+                onClick={() => setExceptionMode((current) => !current)}
+                className={
+                  exceptionMode
+                    ? "min-h-12 rounded-full border border-scope-amber/35 bg-scope-amber/15 text-sm font-semibold text-scope-amber"
+                    : "min-h-12 rounded-full border border-white/12 text-sm font-semibold text-white/80"
+                }
+              >
+                {exceptionMode ? "Exception" : "Note"}
               </button>
               <button
                 onClick={chooseFile}
@@ -321,7 +349,7 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
                 onClick={nextCheckpoint}
                 className="min-h-12 rounded-full bg-scope-blue text-sm font-semibold text-white"
               >
-                Next
+                {activeIndex === checkpoints.length - 1 ? "Review" : "Next"}
               </button>
             </div>
 
@@ -336,7 +364,7 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
           </div>
         </section>
 
-        <aside className="grid content-start gap-4">
+        <aside className="hidden content-start gap-4 lg:grid">
           <div className="camera-glass rounded-[24px] p-5">
             <p className="text-sm text-white/50">Current job</p>
             <h2 className="mt-2 text-2xl font-semibold">{job.vehicle}</h2>
@@ -376,7 +404,7 @@ export function CaptureFlow({ jobId }: CaptureFlowProps) {
             <ClipboardEdit className="h-5 w-5 text-scope-amber" />
             <h3 className="mt-4 text-lg font-semibold">Exception ready</h3>
             <p className="mt-2 text-sm leading-6 text-white/58">
-              Capture pre-existing issues without leaving the proof flow.
+              Toggle exception mode, capture the issue, then add notes from the review reel.
             </p>
             <Link
               href={`/jobs/${job.id}/review`}
@@ -439,7 +467,15 @@ function getStatusText(capture: CaptureState | undefined, isRealJob: boolean) {
     return "Try again";
   }
 
-  return capture.suggestion ?? "Saved";
+  if (
+    capture.suggestion?.toLowerCase().includes("closer") ||
+    capture.suggestion?.toLowerCase().includes("blurry") ||
+    capture.suggestion?.toLowerCase().includes("instead")
+  ) {
+    return "Retake?";
+  }
+
+  return "Saved";
 }
 
 function getStatusTone(

@@ -30,11 +30,13 @@ const storySteps = [
 export default async function Home() {
   const jobs = await listJobsForToday();
   const activeJob = jobs[0];
+  const activeCount = jobs.filter((job) => job.state !== "completed" && job.state !== "cancelled").length;
+  const completeCount = jobs.filter((job) => job.state === "completed").length;
 
   return (
-    <main className="app-bg min-h-screen text-white">
-      <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-8 px-4 py-5 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-8">
-        <section className="flex flex-col justify-between gap-8">
+    <main className="app-bg min-h-dvh overflow-x-hidden text-white">
+      <div className="mx-auto grid min-h-dvh w-full max-w-7xl gap-8 px-0 py-0 sm:px-6 sm:py-5 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-8">
+        <section className="hidden flex-col justify-between gap-8 lg:flex">
           <div>
             <div className="flex items-center justify-between">
               <Logo tagline />
@@ -76,26 +78,31 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="phone-frame mx-auto w-full max-w-[390px] p-2">
-            <div className="phone-screen min-h-[720px] overflow-hidden p-4">
+        <section className="grid min-w-0 gap-6 lg:grid-cols-[0.88fr_1.12fr]">
+          <div className="phone-frame mx-auto w-full max-w-[390px] p-0 sm:p-2">
+            <div className="phone-screen min-h-dvh overflow-hidden p-4 sm:min-h-[720px]">
               <div className="flex items-center justify-between">
                 <Logo />
-                <button className="grid h-10 w-10 place-items-center rounded-full border border-scope-blue/30 bg-scope-blue/10 text-scope-blue">
+                <Link
+                  href="/jobs/new"
+                  className="grid h-10 w-10 place-items-center rounded-full border border-scope-blue/30 bg-scope-blue/10 text-scope-blue"
+                >
                   <Plus className="h-5 w-5" />
-                </button>
+                </Link>
               </div>
 
               <div className="mt-8 flex items-end justify-between">
                 <div>
                   <p className="text-sm text-white/50">Today</p>
-                  <h2 className="mt-1 text-2xl font-semibold">3 active jobs</h2>
+                  <h2 className="mt-1 text-2xl font-semibold">
+                    {activeCount} active {activeCount === 1 ? "job" : "jobs"}
+                  </h2>
                 </div>
                 <StatusPill tone="green">All synced</StatusPill>
               </div>
 
               <div className="mt-5 grid grid-cols-3 gap-2">
-                {["All 5", "In progress 2", "Complete 1"].map((tab, index) => (
+                {[`All ${jobs.length}`, `In progress ${activeCount}`, `Complete ${completeCount}`].map((tab, index) => (
                   <button
                     key={tab}
                     className={
@@ -109,7 +116,7 @@ export default async function Home() {
                 ))}
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="hide-scrollbar mt-5 max-h-[calc(100dvh-230px)] space-y-3 overflow-y-auto pb-8 sm:max-h-none">
                 {jobs.map((job, index) => (
                   <Link
                     href={index === 0 ? `/jobs/${job.id}/capture` : `/jobs/${job.id}/scope`}
@@ -144,7 +151,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="grid content-start gap-4">
+          <div className="hidden content-start gap-4 lg:grid">
             <div className="camera-glass rounded-[24px] p-5">
               <div className="flex items-center justify-between">
                 <div>

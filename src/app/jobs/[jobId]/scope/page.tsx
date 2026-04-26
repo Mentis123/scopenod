@@ -7,6 +7,7 @@ import { QrCard } from "@/components/qr-card";
 import { StatusPill } from "@/components/status-pill";
 import { hasDatabase } from "@/lib/db/client";
 import { includedScope, excludedScope, photos } from "@/lib/demo-data";
+import { getAppUrl } from "@/lib/env";
 import { createApprovalLink } from "@/lib/server/approval-links";
 import { getJobForDisplay } from "@/lib/server/jobs";
 
@@ -29,6 +30,7 @@ async function openScopeLinkAction(formData: FormData) {
 
 export default async function WorkerScopePage({ params }: { params: { jobId: string } }) {
   const job = await getJobForDisplay(params.jobId);
+  const qrUrl = `${getAppUrl()}/handoff/${job.id}?purpose=scope`;
 
   return (
     <main className="app-bg min-h-screen text-white">
@@ -70,7 +72,7 @@ export default async function WorkerScopePage({ params }: { params: { jobId: str
           </div>
 
           <div className="mt-8 rounded-[24px] border border-white/10 bg-black/24 p-5 text-center">
-            <QrCard />
+            <QrCard value={qrUrl} label="Scan for scope review" />
             <p className="mt-5 text-sm font-semibold">QR fallback</p>
             <p className="mt-1 text-xs text-white/48">Job #1027 - {job.vehicle}</p>
           </div>

@@ -1,25 +1,19 @@
-export function QrCard() {
-  const cells = Array.from({ length: 49 }, (_, index) => {
-    const fixed =
-      index === 0 ||
-      index === 1 ||
-      index === 7 ||
-      index === 8 ||
-      index === 40 ||
-      index === 48 ||
-      index % 5 === 0 ||
-      index % 7 === 3;
-    return (
-      <span
-        key={index}
-        className={fixed ? "rounded-[2px] bg-white" : "rounded-[2px] bg-white/15"}
-      />
-    );
-  });
+import QRCode from "react-qr-code";
 
+type QrCardProps = {
+  value?: string;
+  label?: string;
+};
+
+export function QrCard({ value = "https://scopenod.vercel.app", label }: QrCardProps) {
   return (
-    <div className="mx-auto grid h-40 w-40 grid-cols-7 gap-1 rounded-2xl border border-white/10 bg-black p-4 shadow-phone">
-      {cells}
+    <div className="mx-auto grid w-fit gap-3 rounded-2xl border border-white/10 bg-white p-4 shadow-phone">
+      <QRCode value={value} size={148} bgColor="#ffffff" fgColor="#0b0e12" />
+      {label ? (
+        <p className="max-w-[148px] truncate text-center text-xs font-semibold text-graphite-950">
+          {label}
+        </p>
+      ) : null}
     </div>
   );
 }

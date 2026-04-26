@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, hasDatabase } from "@/lib/db/client";
-import { auditEvents, jobPhotos, jobs } from "@/lib/db/schema";
+import { auditEvents, jobExceptions, jobPhotos, jobs } from "@/lib/db/schema";
+import { photos as demoPhotos } from "@/lib/demo-data";
+import type { DisplayPhoto } from "@/components/photo-tile";
 
 export const uploadedPhotoInputSchema = z.object({
   clientUploadId: z.string().trim().min(8),
@@ -33,13 +35,30 @@ export async function registerUploadedPhoto(jobId: string, input: UploadedPhotoI
     throw new Error("Job not found.");
   }
 
+  let exceptionId = input.exceptionId;
+
+  if (input.kind === "exception" && !exceptionId) {
+    const [exception] = await db
+      .insert(jobExceptions)
+      .values({
+        jobId,
+        title: input.label || "Exception photo",
+        note: input.note || "Captured during proof flow.",
+        severity: "low",
+        customerVisible: true
+      })
+      .returning();
+
+    exceptionId = exception.id;
+  }
+
   const [photo] = await db
     .insert(jobPhotos)
     .values({
       clientUploadId: input.clientUploadId,
       jobId,
       checkpointId: input.checkpointId,
-      exceptionId: input.exceptionId,
+      exceptionId,
       kind: input.kind,
       label: input.label,
       note: input.note,
@@ -60,6 +79,7 @@ export async function registerUploadedPhoto(jobId: string, input: UploadedPhotoI
         blobUrl: input.blobUrl,
         thumbnailUrl: input.thumbnailUrl,
         rawBlobUrl: input.rawBlobUrl,
+        exceptionId,
         blobPathname: input.blobPathname,
         contentType: input.contentType,
         sizeBytes: input.sizeBytes,
@@ -85,4 +105,31 @@ export async function registerUploadedPhoto(jobId: string, input: UploadedPhotoI
   });
 
   return photo;
+}
+
+export async function listPhotosForJob(jobId?: string): Promise<DisplayPhoto[]> {
+  if (!jobId || !hasDatabase()) {
+    return demoPhotos;
+  }
+
+  try {
+    const db = getDb();
+    const rows = await db.select().from(jobPhotos).where(eq(jobPhotos.jobId, jobId));
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    return rows.map((photo) => ({
+      id: photo.id,
+      label: photo.label,
+      kind: photo.kind === "other" ? "checkpoint" : photo.kind,
+      position: "50% 50%",
+      url: photo.blobUrl ?? photo.thumbnailUrl ?? photo.rawBlobUrl,
+      status: photo.status,
+      suggestion: photo.note
+    }));
+  } catch {
+    return demoPhotos;
+  }
 }

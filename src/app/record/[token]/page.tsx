@@ -4,8 +4,15 @@ import { Logo } from "@/components/brand";
 import { PhotoTile } from "@/components/photo-tile";
 import { StatusPill } from "@/components/status-pill";
 import { demoBusiness, exceptions, includedScope, photos } from "@/lib/demo-data";
+import { getDb, hasDatabase } from "@/lib/db/client";
+import { customerAcknowledgements, jobExceptions, jobs, scopeItems } from "@/lib/db/schema";
+import { findServiceRecordByToken } from "@/lib/server/approval-links";
+import { listPhotosForJob } from "@/lib/server/photos";
+import { eq } from "drizzle-orm";
 
-export default function ServiceRecordPage() {
+export default async function ServiceRecordPage({ params }: { params: { token: string } }) {
+  const recordData = await getRecordData(params.token);
+
   return (
     <main className="light-record-bg min-h-screen px-4 py-5 text-graphite-950 sm:py-8">
       <div className="mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-soft">
@@ -27,9 +34,9 @@ export default function ServiceRecordPage() {
                 Your service record. Keep it, share it, or hand it on.
               </h1>
               <div className="mt-6 space-y-2 text-sm text-black/62">
-                <p><span className="font-semibold text-graphite-950">Vehicle:</span> Honda Accord - Black</p>
-                <p><span className="font-semibold text-graphite-950">Service:</span> Exterior Detail</p>
-                <p><span className="font-semibold text-graphite-950">Date:</span> May 24, 2025</p>
+                <p><span className="font-semibold text-graphite-950">Vehicle:</span> {recordData.subjectLabel}</p>
+                <p><span className="font-semibold text-graphite-950">Service:</span> {recordData.serviceLabel}</p>
+                <p><span className="font-semibold text-graphite-950">Date:</span> {recordData.dateLabel}</p>
                 <p><span className="font-semibold text-graphite-950">Worker:</span> {demoBusiness.worker}</p>
               </div>
             </div>
@@ -38,8 +45,8 @@ export default function ServiceRecordPage() {
               <div className="flex items-center gap-3">
                 <ShieldCheck className="h-6 w-6 text-scope-green" />
                 <div>
-                  <p className="font-semibold">Acknowledged on May 24, 2025</p>
-                  <p className="text-sm text-black/60">Scope and completion reviewed by Maya Chen.</p>
+                  <p className="font-semibold">{recordData.acknowledgedLabel}</p>
+                  <p className="text-sm text-black/60">Scope and completion reviewed by {recordData.customerName}.</p>
                 </div>
               </div>
             </div>
@@ -53,11 +60,11 @@ export default function ServiceRecordPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <p className="mb-2 text-sm font-semibold text-black/58">Before</p>
-                <PhotoTile photo={photos[0]} className="aspect-[16/10]" />
+                <PhotoTile photo={recordData.beforePhoto} className="aspect-[16/10]" />
               </div>
               <div>
                 <p className="mb-2 text-sm font-semibold text-black/58">After</p>
-                <PhotoTile photo={photos[7]} className="aspect-[16/10]" />
+                <PhotoTile photo={recordData.afterPhoto} className="aspect-[16/10]" />
               </div>
             </div>
           </section>
@@ -65,7 +72,7 @@ export default function ServiceRecordPage() {
           <section className="mt-8">
             <h2 className="text-xl font-semibold">Final photos</h2>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {photos.slice(5, 9).map((photo) => (
+              {recordData.finalPhotos.map((photo) => (
                 <PhotoTile key={photo.id} photo={photo} className="aspect-square" />
               ))}
             </div>
@@ -75,7 +82,7 @@ export default function ServiceRecordPage() {
             <div className="rounded-[20px] border border-black/10 p-5">
               <h2 className="font-semibold">Included work</h2>
               <div className="mt-4 space-y-2">
-                {includedScope.map((item) => (
+                {recordData.included.map((item) => (
                   <div key={item.label} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-scope-green" />
                     {item.label}
@@ -110,9 +117,7 @@ export default function ServiceRecordPage() {
               <TriangleAlert className="mt-0.5 h-5 w-5 text-scope-amber" />
               <div>
                 <h2 className="font-semibold">Exception</h2>
-                <p className="mt-1 text-sm text-black/62">
-                  {exceptions[0].title}: {exceptions[0].note}
-                </p>
+                <p className="mt-1 text-sm text-black/62">{recordData.exceptionLabel}</p>
               </div>
             </div>
           </section>
@@ -132,4 +137,83 @@ export default function ServiceRecordPage() {
       </div>
     </main>
   );
+}
+
+async function getRecordData(token: string) {
+  const fallback = {
+    customerName: "Maya Chen",
+    subjectLabel: "Honda Accord - Black",
+    serviceLabel: "Exterior Detail",
+    dateLabel: "May 24, 2025",
+    acknowledgedLabel: "Acknowledged on May 24, 2025",
+    beforePhoto: photos[0],
+    afterPhoto: photos[7],
+    finalPhotos: photos.slice(5, 9),
+    included: includedScope,
+    exceptionLabel: `${exceptions[0].title}: ${exceptions[0].note}`
+  };
+
+  if (!hasDatabase() || token === "demo") {
+    return fallback;
+  }
+
+  try {
+    const db = getDb();
+    const record = await findServiceRecordByToken(token);
+
+    if (!record) {
+      return fallback;
+    }
+
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, record.jobId)).limit(1);
+
+    if (!job) {
+      return fallback;
+    }
+
+    const [scopeRows, exceptionRows, acknowledgementRows, jobPhotos] = await Promise.all([
+      db.select().from(scopeItems).where(eq(scopeItems.jobId, job.id)),
+      db.select().from(jobExceptions).where(eq(jobExceptions.jobId, job.id)),
+      db.select().from(customerAcknowledgements).where(eq(customerAcknowledgements.jobId, job.id)),
+      listPhotosForJob(job.id)
+    ]);
+    const displayPhotos = jobPhotos.length > 0 ? jobPhotos : photos;
+    const beforePhoto = displayPhotos.find((photo) => photo.kind === "before") ?? displayPhotos[0] ?? photos[0];
+    const afterPhoto =
+      displayPhotos.find((photo) => photo.kind === "after") ??
+      displayPhotos.find((photo) => photo.kind === "checkpoint") ??
+      displayPhotos[displayPhotos.length - 1] ??
+      photos[7];
+    const completionAck = acknowledgementRows.find((ack) => ack.kind === "completion");
+
+    return {
+      customerName: job.customerName,
+      subjectLabel: job.subjectLabel,
+      serviceLabel: job.serviceLabel,
+      dateLabel: formatDate(job.createdAt),
+      acknowledgedLabel: completionAck
+        ? `Acknowledged on ${formatDate(completionAck.acknowledgedAt)}`
+        : "Pending customer acknowledgement",
+      beforePhoto,
+      afterPhoto,
+      finalPhotos: displayPhotos.slice(0, 8),
+      included: scopeRows
+        .filter((item) => item.kind === "included")
+        .map((item) => ({ label: item.label, detail: item.detail ?? undefined })),
+      exceptionLabel:
+        exceptionRows.length > 0
+          ? `${exceptionRows[0].title}: ${exceptionRows[0].note ?? "Documented during service."}`
+          : fallback.exceptionLabel
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
 }
